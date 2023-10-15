@@ -22,6 +22,9 @@
 #define NOME_ARQ_DADOS "dados.dat"
 #define NOME_ARQ_BTREE "btree.dat"
 
+// ponteiro do arquivo btree.dat (como variável global)
+FILE *arvb = NULL;
+
 typedef struct {
     char op_tipo; // b (busca), i (inserção)
     char op_info[512]; // as informações da operação
