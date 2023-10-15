@@ -1,12 +1,12 @@
-#ifndef BTREE_H_INCLUDED
-#define BTREE_H_INCLUDED
-
 /**
  * Este é a interface (header) que descreve um TAD de uma Árvore-B (B-Tree)
  * A B-Tree é criada e mantida no arquivo de dados
  * Declarações, funções e demais foram criados previamente no arquivo
  * "libarvb.h" do classroom
 **/
+
+#ifndef BTREE_H_INCLUDED
+#define BTREE_H_INCLUDED
 
 // Declarações
 #define ORDEM 5
@@ -20,6 +20,7 @@ typedef struct _cabecalho {
 typedef struct _pagina {
     int num_chaves;
     int chaves[ORDEM-1];
+    int offsets[ORDEM-1];
     int filhos[ORDEM];
 } PAGINA;
 
@@ -67,14 +68,17 @@ int novo_rrn();
     => Um número inteiro que corresponde ao RRN da uma nova página
 **/
 
-void inicializa_pagina(PAGINA *pag);
+PAGINA inicializa_pagina();
 /**
     Função que inicializa uma pagina.
     Todas as posições dos campos chaves e filhos serão inicializadas com NULO (-1).
     O campo num_chaves será inicializado com zero.
 
-    Entrada:
-    => PAGINA * pag = ponteiro para a página que será inicializada 
+    "Entrada":
+    => PAGINA *pag = ponteiro para a página que será inicializada 
+
+    Saída:
+    => A página pag inicializada
 **/
 
 void insere_na_pagina(int chv_pro, int rrn_pro, int chaves[], int filhos[], int *num_chaves);
