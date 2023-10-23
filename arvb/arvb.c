@@ -17,10 +17,10 @@ int le_pagina(int rrn, PAGINA *pag)
     }
     /* (registros de tamanho fixo)
     1. pag.num_chaves;
-    2. pag.chaves[i]|pag.offsets[i]
+    2. pag.chaves[i] pag.offsets[i]
     3. pag.filhos;
-    Ex: página 2:  3| 4|21| 8|47|11|67| 0| 3| 8| 5|
-    Ex: página 3:  2| 5|31| 7|39|-1|-1|-1|-1|-1|-1|
+    Ex: página 2:  3  4 21  8 47 11 67  0  3  8  5 
+    Ex: página 3:  2  5 31  7 39 -1 -1 -1 -1 -1 -1 
     */
    int i;
     // Ler num_chaves
@@ -28,24 +28,20 @@ int le_pagina(int rrn, PAGINA *pag)
         return 0; // Falha na leitura
     }
 
-    fseek(arvb, 1, SEEK_CUR); // Pular o '|'
     // Ler chaves e offsets
-    for(i = 0; i < pag->num_chaves; i++) {
+    for(i = 0; i < (ORDEM - 1); i++) {
         if(fread(&pag->chaves[i], sizeof(int), 1, arvb) != 1) {
             return 0; // Falha na leitura
         }
-        fseek(arvb, 1, SEEK_CUR); // Pular o '|'
         if(fread(&pag->offsets[i], sizeof(int), 1, arvb) != 1) {
             return 0; // Falha na leitura
         }
-        fseek(arvb, 1, SEEK_CUR); // Pular o '|'
     }
     // Ler filhos
     for(i = 0; i < ORDEM; i++) {
         if(fread(&pag->filhos[i], sizeof(int), 1, arvb) != 1) {
             return 0; // Falha na leitura
         }
-        fseek(arvb, 1, SEEK_CUR); // Pular o '|'
     }
     return 1; // Lida com sucesso
 }
@@ -58,10 +54,10 @@ int escreve_pagina(int rrn, PAGINA *pag)
     }
     /* (registros de tamanho fixo)
     1. pag.num_chaves;
-    2. pag.chaves[i]|pag.offsets[i]
+    2. pag.chaves[i] pag.offsets[i]
     3. pag.filhos;
-    Ex: página 2:  3| 4|21| 8|47|11|67| 0| 3| 8| 5|
-    Ex: página 3:  2| 5|31| 7|39|-1|-1|-1|-1|-1|-1|
+    Ex: página 2:  3  4 21  8 47 11 67  0  3  8  5 
+    Ex: página 3:  2  5 31  7 39 -1 -1 -1 -1 -1 -1 
     */
 
     int i;
@@ -70,24 +66,20 @@ int escreve_pagina(int rrn, PAGINA *pag)
         return 0; // Falha na escrita
     }
 
-    fputc('|', arvb); // Escrever o '|'
     // Escrever chaves e offsets
-    for(i = 0; i < pag->num_chaves; i++) {
+    for(i = 0; i < (ORDEM-1); i++) {
         if(fwrite(&pag->chaves[i], sizeof(int), 1, arvb) != 1) {
             return 0; // Falha na escrita
         }
-        fputc('|', arvb); // Escrever o '|'
         if(fwrite(&pag->offsets[i], sizeof(int), 1, arvb) != 1) {
             return 0; // Falha na escrita
         }
-        fputc('|', arvb); // Escrever o '|'
     }
     // Escrever filhos
     for(i = 0; i < ORDEM; i++) {
         if(fwrite(&pag->filhos[i], sizeof(int), 1, arvb) != 1) {
             return 0; // Falha na escrita
         }
-        fputc('|', arvb); // Escrever o '|'
     }
     return 1; // Escrita com sucesso
 
@@ -101,7 +93,7 @@ int novo_rrn()
     fseek(arvb, 0, SEEK_END);
     int byteoffset = ftell(arvb);
 
-    return (byteoffset - tamanhocab) / tamanhopag;
+    return((byteoffset - tamanhocab) / tamanhopag);
 }
 
 PAGINA inicializa_pagina()
@@ -111,6 +103,7 @@ PAGINA inicializa_pagina()
     pag.num_chaves = 0;
     for(i = 0; i < ORDEM-1; i++) {
         pag.chaves[i] = NULO;
+        pag.offsets[i] = NULO;
         pag.filhos[i] = NULO;
     }
     pag.filhos[i] = NULO;
@@ -118,25 +111,28 @@ PAGINA inicializa_pagina()
     return pag;
 }
 
-void insere_na_pagina(int chv_pro, int rrn_pro, int chaves[], int filhos[], int *num_chaves)
+void insere_na_pagina(int chv_pro, /**/ int offset_pro /**/, int filho_d, int chaves[], /**/ int offsets[] /**/, int filhos[], int *num_chaves)
 {
     int i = *num_chaves;
     while(i > 0 && chv_pro < chaves[i - 1]) {
         chaves[i] = chaves[i - 1];
+        offsets[i] = offsets[i - 1];
         filhos[i + 1] = filhos[i];
         i--;
     }
-    num_chaves++;
+    *num_chaves = *num_chaves + 1;
     chaves[i] = chv_pro;
-    filhos[i + 1] = rrn_pro;
+    offsets[i] = offset_pro;
+    filhos[i + 1] = filho_d;
 }
 
-void divide(int chave_i, int rrn_i, PAGINA *pag, int *chave_pro, int *filho_d_pro, PAGINA *novapag)
+void divide(int chave_i, /**/ int offset_i /**/, int rrn_i, PAGINA *pag, int *chave_pro, /**/ int *offset_pro /**/, int *filho_d_pro, PAGINA *novapag)
 {
     PAGINA pagaux = *pag;
-    insere_na_pagina(chave_i, rrn_i, pagaux.chaves, pagaux.filhos, &pagaux.num_chaves);
+    insere_na_pagina(chave_i, offset_i, rrn_i, pagaux.chaves, pagaux.offsets, pagaux.filhos, &pagaux.num_chaves);
     int MEIO = ORDEM/2;
     *chave_pro = pagaux.chaves[MEIO];
+    *offset_pro = pagaux.offsets[MEIO];
     /* faça FILHO_D_PRO receber o RRN que o NOVAPAG terá no arquivo árvore-B */
     *filho_d_pro = novo_rrn(); // ?
 
@@ -147,6 +143,7 @@ void divide(int chave_i, int rrn_i, PAGINA *pag, int *chave_pro, int *filho_d_pr
     int i = 0;
     while(i < MEIO) {
         pag->chaves[i] = pagaux.chaves[i];
+        pag->offsets[i] = pagaux.offsets[i];
         pag->filhos[i] = pagaux.filhos[i];
         pag->num_chaves++;
         i++;
@@ -160,6 +157,7 @@ void divide(int chave_i, int rrn_i, PAGINA *pag, int *chave_pro, int *filho_d_pr
     i = MEIO + 1;
     while (i < ORDEM) {
         novapag->chaves[novapag->num_chaves] = pagaux.chaves[i];
+        novapag->offsets[novapag->num_chaves] = pagaux.offsets[i];
         novapag->filhos[novapag->num_chaves] = pagaux.filhos[i];
         novapag->num_chaves++;
         i++;
@@ -168,13 +166,14 @@ void divide(int chave_i, int rrn_i, PAGINA *pag, int *chave_pro, int *filho_d_pr
 
 }
 
-int insere(int rrn_atual, int chave, int *filho_d_pro, int *chave_pro)
+int insere(int rrn_atual, int chave, /**/ int offset /**/, int *filho_d_pro, int *chave_pro, /**/ int *offset_pro /**/)
 {
     PAGINA pag = inicializa_pagina();
     int pos = 0, ACHOU = 0;
 
     if(rrn_atual == NULO) { // condição de parada
         *chave_pro = chave;
+        *offset_pro = offset;
         *filho_d_pro = NULO;
         return PROMOCAO;
     }
@@ -188,22 +187,22 @@ int insere(int rrn_atual, int chave, int *filho_d_pro, int *chave_pro)
         return ERRO;
     }
 
-    int rrn_pro, chv_pro;
+    int rrn_pro = NULO, chv_pro = NULO, offst_pro = NULO;
 
-    int RETORNO = insere(pag.filhos[pos], chave, &rrn_pro, &chv_pro);
-    if(RETORNO == SEM_PROMOCAO || RETORNO == ERRO) {
+    int RETORNO = insere(pag.filhos[pos], chave, offset, &rrn_pro, &chv_pro, &offst_pro);
+    if((RETORNO == SEM_PROMOCAO) || (RETORNO == ERRO)) {
         return RETORNO;
     }
     else {
-        if(pag.num_chaves < ORDEM - 1) {
-            insere_na_pagina(chv_pro, rrn_pro, pag.chaves, pag.filhos, &pag.num_chaves);
+        if(pag.num_chaves < (ORDEM - 1)) {
+            insere_na_pagina(chv_pro, offst_pro, rrn_pro, pag.chaves, pag.offsets, pag.filhos, &pag.num_chaves);
             escreve_pagina(rrn_atual, &pag);
             return SEM_PROMOCAO;
         }
         else {
-            PAGINA novapag;
+            PAGINA novapag = inicializa_pagina();
 
-            divide(chv_pro, rrn_pro, &pag, chave_pro, filho_d_pro, &novapag);
+            divide(chv_pro, offst_pro, rrn_pro, &pag, &(*chave_pro), &(*offset_pro), &(*filho_d_pro), &novapag);
             escreve_pagina(rrn_atual, &pag);
             escreve_pagina((*filho_d_pro), &novapag);
             return PROMOCAO;
@@ -214,9 +213,10 @@ int insere(int rrn_atual, int chave, int *filho_d_pro, int *chave_pro)
 int busca_na_pagina(int chave, PAGINA pag, int *pos)
 {
     int i = 0;
-    while(i < pag.num_chaves && chave > pag.chaves[i]) i++;
+    while((i < pag.num_chaves) && (chave > pag.chaves[i])) i++;
+    
     *pos = i;
-    if(*pos < pag.num_chaves && chave == pag.chaves[*pos]) {
+    if((*pos < pag.num_chaves) && (chave == pag.chaves[*pos])) {
         return ENCONTRADO;
     } else return NAO_ENCONTRADO;
 }
@@ -231,7 +231,6 @@ int busca(int rrn, int chave, int *rrn_encontrado, int *pos_encontrada)
     }
     else {
         le_pagina(rrn, &pag);
-
         int ACHOU = busca_na_pagina(chave, pag, &pos);
         /* POS recebe a posição em que a CHAVE ocorre 
             ou deveria ocorrer se estivesse em PAG */
@@ -293,17 +292,19 @@ int imprime_arvore()
     PAGINA pag = inicializa_pagina();
     fseek(arvb, 0, SEEK_SET);
     if (fread(&cab, sizeof(CABECALHO), 1, arvb) != 1) {
+        printf("\nNao foi possivel ler o cabecalho...\n");
         return 0; // Falha ao ler o cabeçalho
     }
     int rrn = 0;
     while(le_pagina(rrn, &pag) != 0) { // condição de parada
-        if(rrn = cab.rrn_raiz) {
-            printf("\n·- ·- ·- ·RAIZ· -· -· -·");
+        if(rrn == cab.rrn_raiz) {
+            printf("\n- - - RAIZ - - -");
             imprime_pagina(rrn);
-            printf("·- ·- ·- ·-  -· -· -· -·\n");
+            printf("- - - -  - - - -\n");
+        } else {
+            imprime_pagina(rrn);
         }
-        imprime_pagina(rrn);
-        rrn++;
+        rrn = rrn + 1;
     }
     return 1; // Impresso com sucesso
 
